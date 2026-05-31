@@ -29,6 +29,34 @@ Antworte NUR als JSON (kein Markdown):
 {"score": 0-100, "feedback": "...", "correct": true/false}
 correct ist true wenn score >= 60.`;
 
+// Changelog – auch im ⓘ-Menü sichtbar. Neueste Version oben.
+const CHANGELOG = [
+  {
+    version: "1.2.0", date: "2026-05-31",
+    changes: [
+      "KI auf Google Gemini umgestellt (gemini-2.0-flash), direkt im Browser",
+      "API-Schlüssel-Eingabe im ⓘ-Menü, nur lokal im Browser gespeichert",
+      "Cloudflare-Worker-Proxy entfernt (nicht mehr nötig)",
+    ],
+  },
+  {
+    version: "1.1.0", date: "2026-05-31",
+    changes: [
+      "Serverseitiger KI-Proxy (in v1.2 durch Gemini-Lösung ersetzt)",
+      "Verständliche Fehlermeldungen statt stiller Abbrüche",
+    ],
+  },
+  {
+    version: "1.0.0", date: "2026-05-31",
+    changes: [
+      "Erste Version: Infos, Quiz & Chat",
+      "Animierter Sternenhimmel & PWA-Manifest",
+      "Eigenes App-Icon + iOS-Home-Screen-Support",
+      "iOS-Overscroll/Rubber-Band behoben",
+    ],
+  },
+];
+
 // ── Gemini (Google AI Studio) ───────────────────────────────────────────────
 // Der API-Key wird NICHT im Code abgelegt, sondern zur Laufzeit eingegeben und
 // nur lokal im Browser gespeichert (localStorage). Siehe ⓘ-Menü in der App.
@@ -539,6 +567,22 @@ function InfoModal({ onClose }) {
             <li>Quiz: Multiple Choice & Freitext mit KI-Bewertung</li>
             <li>Freier Chat mit einem Astrophysik-Experten</li>
           </ul>
+
+          <strong style={{ color: "#e2e8f0", display: "block", marginTop: 16 }}>Changelog</strong>
+          <div style={{ marginTop: 8 }}>
+            {CHANGELOG.map(rel => (
+              <div key={rel.version} style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#c4b5fd" }}>
+                  v{rel.version}
+                  <span style={{ color: "#64748b", fontWeight: 400, marginLeft: 6 }}>· {rel.date}</span>
+                </div>
+                <ul style={{ marginTop: 4, paddingLeft: 20 }}>
+                  {rel.changes.map((c, i) => <li key={i}>{c}</li>)}
+                </ul>
+              </div>
+            ))}
+          </div>
+
           <strong style={{ color: "#e2e8f0", display: "block", marginTop: 16 }}>Tech-Stack</strong>
           <ul style={{ marginTop: 8, paddingLeft: 20 }}>
             <li>React (PWA-fähig)</li>
