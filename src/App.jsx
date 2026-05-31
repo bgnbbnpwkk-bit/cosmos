@@ -32,6 +32,12 @@ correct ist true wenn score >= 60.`;
 // Changelog – auch im ⓘ-Menü sichtbar. Neueste Version oben.
 const CHANGELOG = [
   {
+    version: "1.2.1", date: "2026-05-31",
+    changes: [
+      "Modell auf gemini-2.5-flash aktualisiert (2.0-flash war nicht mehr verfügbar)",
+    ],
+  },
+  {
     version: "1.2.0", date: "2026-05-31",
     changes: [
       "KI auf Google Gemini umgestellt (gemini-2.0-flash), direkt im Browser",
@@ -60,7 +66,7 @@ const CHANGELOG = [
 // ── Gemini (Google AI Studio) ───────────────────────────────────────────────
 // Der API-Key wird NICHT im Code abgelegt, sondern zur Laufzeit eingegeben und
 // nur lokal im Browser gespeichert (localStorage). Siehe ⓘ-Menü in der App.
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = "gemini-2.5-flash";
 const KEY_STORAGE = "cosmos_gemini_key";
 
 function getApiKey() {

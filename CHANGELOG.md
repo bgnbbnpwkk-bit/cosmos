@@ -3,6 +3,12 @@
 Alle nennenswerten Änderungen an COSMOS werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
+## [1.2.1] – 2026-05-31
+
+### Geändert
+- Standardmodell auf `gemini-2.5-flash` aktualisiert – `gemini-2.0-flash` ist
+  für neue Google-AI-Studio-Accounts nicht mehr verfügbar.
+
 ## [1.2.0] – 2026-05-31
 
 ### Geändert
