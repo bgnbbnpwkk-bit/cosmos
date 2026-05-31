@@ -3,6 +3,17 @@
 Alle nennenswerten Änderungen an COSMOS werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
+## [1.4.0] – 2026-05-31
+
+### Hinzugefügt
+- Markdown-Rendering für KI-Antworten (Infos & Chat) via `react-markdown` –
+  Überschriften, Listen, Hervorhebungen & Co. statt Roh-Text.
+
+### Geändert
+- `maxOutputTokens` auf 2048 erhöht und „Thinking" deaktiviert
+  (`thinkingBudget: 0`) → vollständige Antworten, schneller, kein verschwendetes
+  Token-Budget.
+
 ## [1.3.0] – 2026-05-31
 
 ### Hinzugefügt

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
 
 const TOPICS = [
   { id: "planets", label: "Planeten", icon: "🪐", description: "Unser Sonnensystem & seine Körper" },
@@ -31,6 +32,13 @@ correct ist true wenn score >= 60.`;
 
 // Changelog – auch im ⓘ-Menü sichtbar. Neueste Version oben.
 const CHANGELOG = [
+  {
+    version: "1.4.0", date: "2026-05-31",
+    changes: [
+      "KI-Antworten werden als formatiertes Markdown dargestellt (Überschriften, Listen, Hervorhebungen)",
+      "Vollständigere Antworten: Token-Limit erhöht, „Thinking“ deaktiviert",
+    ],
+  },
   {
     version: "1.3.0", date: "2026-05-31",
     changes: [
@@ -99,7 +107,9 @@ async function callAI(messages, system, json = false) {
     const body = {
       contents,
       generationConfig: {
-        maxOutputTokens: 1000,
+        maxOutputTokens: 2048,
+        // Thinking abschalten: spart Budget/Zeit und liefert vollständige Antworten.
+        thinkingConfig: { thinkingBudget: 0 },
         ...(json ? { responseMimeType: "application/json" } : {}),
       },
     };
@@ -152,6 +162,29 @@ function applyUpdate(version) {
   // Query-Param umgeht den HTML-Cache; das neue index.html referenziert die
   // neuen, gehashten Asset-Dateien.
   window.location.replace(window.location.pathname + "?v=" + encodeURIComponent(v));
+}
+
+// ── Markdown-Rendering ───────────────────────────────────────────────────────
+const mdComponents = {
+  h1: ({ node, ...p }) => <h2 style={{ fontSize: 22, fontWeight: 700, color: "#e9d5ff", margin: "20px 0 10px", fontFamily: "'DM Sans', sans-serif" }} {...p} />,
+  h2: ({ node, ...p }) => <h3 style={{ fontSize: 19, fontWeight: 700, color: "#c4b5fd", margin: "18px 0 8px", fontFamily: "'DM Sans', sans-serif" }} {...p} />,
+  h3: ({ node, ...p }) => <h4 style={{ fontSize: 16, fontWeight: 600, color: "#a5b4fc", margin: "16px 0 6px", fontFamily: "'DM Sans', sans-serif" }} {...p} />,
+  p: ({ node, ...p }) => <p style={{ margin: "0 0 12px" }} {...p} />,
+  ul: ({ node, ...p }) => <ul style={{ margin: "0 0 12px", paddingLeft: 22 }} {...p} />,
+  ol: ({ node, ...p }) => <ol style={{ margin: "0 0 12px", paddingLeft: 22 }} {...p} />,
+  li: ({ node, ...p }) => <li style={{ marginBottom: 4 }} {...p} />,
+  strong: ({ node, ...p }) => <strong style={{ color: "#f1f5f9", fontWeight: 700 }} {...p} />,
+  em: ({ node, ...p }) => <em style={{ color: "#cbd5e1" }} {...p} />,
+  a: ({ node, ...p }) => <a style={{ color: "#818cf8" }} target="_blank" rel="noreferrer" {...p} />,
+  hr: () => <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.12)", margin: "16px 0" }} />,
+  blockquote: ({ node, ...p }) => <blockquote style={{ borderLeft: "3px solid rgba(139,92,246,0.6)", margin: "0 0 12px", padding: "2px 0 2px 14px", color: "#94a3b8" }} {...p} />,
+  code: ({ node, inline, ...p }) => inline
+    ? <code style={{ background: "rgba(255,255,255,0.08)", borderRadius: 5, padding: "1px 6px", fontSize: "0.9em", fontFamily: "monospace" }} {...p} />
+    : <code style={{ display: "block", background: "rgba(0,0,0,0.35)", borderRadius: 8, padding: 12, overflowX: "auto", fontSize: "0.88em", fontFamily: "monospace", marginBottom: 12 }} {...p} />,
+};
+
+function MD({ children }) {
+  return <ReactMarkdown components={mdComponents}>{children || ""}</ReactMarkdown>;
 }
 
 // ── Stars background ──────────────────────────────────────────────────────────
@@ -237,10 +270,10 @@ function InfoTab() {
         <div style={{
           background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
           borderRadius: 16, padding: 28, animation: "fadeIn 0.4s ease",
-          lineHeight: 1.8, color: "#e2e8f0", fontSize: 15, whiteSpace: "pre-wrap",
+          lineHeight: 1.8, color: "#e2e8f0", fontSize: 15,
           fontFamily: "'Crimson Pro', Georgia, serif",
         }}>
-          {content}
+          <MD>{content}</MD>
         </div>
       )}
     </div>
@@ -490,9 +523,9 @@ function ChatTab() {
               lineHeight: 1.75,
               fontFamily: m.role === "assistant" ? "'Crimson Pro', Georgia, serif" : "'DM Sans', sans-serif",
               fontSize: m.role === "assistant" ? 16 : 14,
-              whiteSpace: "pre-wrap",
+              whiteSpace: m.role === "assistant" ? "normal" : "pre-wrap",
             }}>
-              {m.content}
+              {m.role === "assistant" ? <MD>{m.content}</MD> : m.content}
             </div>
           </div>
         ))}
