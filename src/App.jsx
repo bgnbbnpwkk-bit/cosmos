@@ -32,6 +32,13 @@ correct ist true wenn score >= 60.`;
 // Changelog – auch im ⓘ-Menü sichtbar. Neueste Version oben.
 const CHANGELOG = [
   {
+    version: "1.3.0", date: "2026-05-31",
+    changes: [
+      "Automatische Update-Erkennung: App lädt neue Versionen selbsttätig nach",
+      "Hinweis-Banner „Neue Version verfügbar“ bei Rückkehr zur App",
+    ],
+  },
+  {
     version: "1.2.1", date: "2026-05-31",
     changes: [
       "Modell auf gemini-2.5-flash aktualisiert (2.0-flash war nicht mehr verfügbar)",
@@ -121,6 +128,30 @@ async function callAI(messages, system, json = false) {
   } catch {
     return json ? null : "⚠️ Verbindung zur Gemini-API fehlgeschlagen.";
   }
+}
+
+// ── Auto-Update ──────────────────────────────────────────────────────────────
+// Build-ID wird zur Build-Zeit eingebacken (siehe vite.config.js) und mit der
+// live ausgelieferten version.json verglichen. Bei Unterschied: harter Reload
+// mit Cache-Buster, damit das neue Bundle sicher geladen wird.
+const BUILD_ID = typeof __BUILD_ID__ !== "undefined" ? __BUILD_ID__ : "dev";
+
+async function fetchLatestVersion() {
+  try {
+    const res = await fetch(`${import.meta.env.BASE_URL}version.json?ts=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.version || null;
+  } catch {
+    return null;
+  }
+}
+
+function applyUpdate(version) {
+  const v = version || Date.now().toString();
+  // Query-Param umgeht den HTML-Cache; das neue index.html referenziert die
+  // neuen, gehashten Asset-Dateien.
+  window.location.replace(window.location.pathname + "?v=" + encodeURIComponent(v));
 }
 
 // ── Stars background ──────────────────────────────────────────────────────────
@@ -628,6 +659,31 @@ const cardStyle = {
 export default function App() {
   const [tab, setTab] = useState("info");
   const [showInfo, setShowInfo] = useState(false);
+  const [newVersion, setNewVersion] = useState(null);
+
+  // Auto-Update-Prüfung: beim Start (hart) und bei Rückkehr zur App (Banner).
+  useEffect(() => {
+    let active = true;
+    async function check(initial) {
+      const v = await fetchLatestVersion();
+      if (!active || !v || v === BUILD_ID) return;
+      if (initial) {
+        // Reload-Schleife verhindern: pro Version nur einmal automatisch laden.
+        if (sessionStorage.getItem("cosmos_updated_to") === v) {
+          setNewVersion(v);
+          return;
+        }
+        sessionStorage.setItem("cosmos_updated_to", v);
+        applyUpdate(v);
+      } else {
+        setNewVersion(v);
+      }
+    }
+    check(true);
+    const onVis = () => { if (document.visibilityState === "visible") check(false); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { active = false; document.removeEventListener("visibilitychange", onVis); };
+  }, []);
 
   const tabs = [
     { id: "info", label: "Infos", icon: "📚" },
@@ -646,6 +702,21 @@ export default function App() {
     }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
       <StarField />
+
+      {newVersion && (
+        <button onClick={() => applyUpdate(newVersion)} style={{
+          position: "fixed", left: 16, right: 16, bottom: 16, zIndex: 90,
+          margin: "0 auto", maxWidth: 420,
+          background: "linear-gradient(135deg, #6d28d9, #4f46e5)",
+          border: "none", borderRadius: 14, padding: "14px 18px",
+          color: "white", fontSize: 14, fontWeight: 600, cursor: "pointer",
+          fontFamily: "'DM Sans', sans-serif",
+          boxShadow: "0 8px 30px rgba(79,70,229,0.5)",
+          animation: "fadeIn 0.3s ease",
+        }}>
+          ✨ Neue Version verfügbar – jetzt aktualisieren
+        </button>
+      )}
 
       <div style={{ position: "relative", zIndex: 1, maxWidth: 860, margin: "0 auto", padding: "0 20px 60px" }}>
         {/* Header */}

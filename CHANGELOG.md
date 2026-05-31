@@ -3,6 +3,17 @@
 Alle nennenswerten Änderungen an COSMOS werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
+## [1.3.0] – 2026-05-31
+
+### Hinzugefügt
+- Automatischer Update-Mechanismus: Jeder Build erhält eine Build-ID
+  (`version.json`). Die App vergleicht beim Start und bei Rückkehr zur App die
+  laufende mit der live ausgelieferten Version und lädt bei Bedarf hart neu
+  (Cache-Buster `?v=…`); eine Reload-Schleife wird per `sessionStorage`
+  verhindert.
+- Hinweis-Banner „Neue Version verfügbar – jetzt aktualisieren", wenn während
+  der Nutzung ein neuer Build erkannt wird.
+
 ## [1.2.1] – 2026-05-31
 
 ### Geändert
