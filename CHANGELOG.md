@@ -3,6 +3,24 @@
 Alle nennenswerten Änderungen an COSMOS werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
+## [1.2.0] – 2026-05-31
+
+### Geändert
+- KI-Backend von Anthropic Claude auf **Google Gemini** (`gemini-2.0-flash`)
+  umgestellt – Aufruf direkt aus dem Browser (Gemini erlaubt CORS).
+- API-Key wird über das ⓘ-Menü eingegeben und **nur lokal im Browser**
+  (`localStorage`) gespeichert – nie im Code, Repo oder Bundle.
+- ⓘ-Modal um ein Schlüssel-Eingabefeld (Speichern/Entfernen, Status) erweitert;
+  Tech-Stack & Version aktualisiert.
+
+### Entfernt
+- Cloudflare-Worker-Proxy (`worker/`) – mit der lokalen Key-Lösung nicht mehr
+  nötig.
+
+### Hinweise
+- Empfehlung: Im Google-Cloud-Console eine HTTP-Referrer-Beschränkung auf die
+  Pages-Adresse setzen und den Key auf dem Free-Tier (ohne Billing) belassen.
+
 ## [1.1.0] – 2026-05-31
 
 ### Hinzugefügt

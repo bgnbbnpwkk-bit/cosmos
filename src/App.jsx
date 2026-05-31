@@ -29,28 +29,55 @@ Antworte NUR als JSON (kein Markdown):
 {"score": 0-100, "feedback": "...", "correct": true/false}
 correct ist true wenn score >= 60.`;
 
-// URL des Cloudflare-Worker-Proxys. Nach dem Worker-Deploy hier eintragen
-// (oder zur Build-Zeit via VITE_PROXY_URL setzen). Siehe worker/README.md.
-const PROXY_URL = import.meta.env.VITE_PROXY_URL || "https://DEINE-WORKER-URL.workers.dev";
+// ── Gemini (Google AI Studio) ───────────────────────────────────────────────
+// Der API-Key wird NICHT im Code abgelegt, sondern zur Laufzeit eingegeben und
+// nur lokal im Browser gespeichert (localStorage). Siehe ⓘ-Menü in der App.
+const GEMINI_MODEL = "gemini-2.0-flash";
+const KEY_STORAGE = "cosmos_gemini_key";
 
-async function callClaude(messages, system, json = false) {
+function getApiKey() {
+  try { return localStorage.getItem(KEY_STORAGE) || ""; } catch { return ""; }
+}
+function setApiKey(value) {
   try {
-    const res = await fetch(PROXY_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        system,
-        messages,
-      }),
-    });
+    if (value) localStorage.setItem(KEY_STORAGE, value);
+    else localStorage.removeItem(KEY_STORAGE);
+  } catch { /* localStorage nicht verfügbar */ }
+}
+
+async function callAI(messages, system, json = false) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    return json ? null : "⚠️ Kein API-Schlüssel hinterlegt. Bitte oben rechts über ⓘ deinen Gemini-Key eintragen.";
+  }
+  try {
+    const contents = messages.map(m => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+    const body = {
+      contents,
+      generationConfig: {
+        maxOutputTokens: 1000,
+        ...(json ? { responseMimeType: "application/json" } : {}),
+      },
+    };
+    if (system) body.systemInstruction = { parts: [{ text: system }] };
+
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }
+    );
     const data = await res.json();
     if (!res.ok) {
-      const msg = data?.error?.message || data?.error || `Fehler ${res.status}`;
+      const msg = data?.error?.message || `Fehler ${res.status}`;
       return json ? null : `⚠️ ${msg}`;
     }
-    const text = data.content?.find(b => b.type === "text")?.text || "";
+    const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join("") || "";
     if (json) {
       try {
         return JSON.parse(text.replace(/```json|```/g, "").trim());
@@ -58,7 +85,7 @@ async function callClaude(messages, system, json = false) {
     }
     return text || "⚠️ Leere Antwort erhalten.";
   } catch {
-    return json ? null : "⚠️ Verbindung zum KI-Proxy fehlgeschlagen. Ist PROXY_URL korrekt gesetzt?";
+    return json ? null : "⚠️ Verbindung zur Gemini-API fehlgeschlagen.";
   }
 }
 
@@ -106,7 +133,7 @@ function InfoTab() {
     setSelected(topic.id);
     setContent("");
     setLoading(true);
-    const text = await callClaude(
+    const text = await callAI(
       [{ role: "user", content: `Gib mir einen technisch fundierten Überblick über: ${topic.label} – ${topic.description}. Strukturiere mit kurzen Abschnitten. Verwende Fakten, Zahlen und Fachbegriffe.` }],
       SYSTEM_ASTRONOMER
     );
@@ -178,7 +205,7 @@ function QuizTab() {
     setLoading(true);
     const topicHint = topic === "random" ? "einem zufälligen Astronomie-Thema" : TOPICS.find(t => t.id === topic)?.label;
     const sys = m === "mc" ? SYSTEM_QUIZ_MC : SYSTEM_QUIZ_FREE;
-    const q = await callClaude(
+    const q = await callAI(
       [{ role: "user", content: `Erstelle eine Frage zu: ${topicHint}` }],
       sys, true
     );
@@ -197,7 +224,7 @@ function QuizTab() {
   async function submitFree() {
     if (!freeText.trim() || evalLoading) return;
     setEvalLoading(true);
-    const result = await callClaude(
+    const result = await callAI(
       [{ role: "user", content: `Frage: ${question.question}\nSchlüsselbegriffe: ${question.keywords.join(", ")}\nMusterantwort: ${question.model_answer}\nGegebene Antwort: ${freeText}` }],
       SYSTEM_QUIZ_EVAL, true
     );
@@ -350,7 +377,7 @@ function ChatTab() {
     setMessages(newMsgs);
     setInput("");
     setLoading(true);
-    const reply = await callClaude(newMsgs, SYSTEM_ASTRONOMER);
+    const reply = await callAI(newMsgs, SYSTEM_ASTRONOMER);
     setMessages([...newMsgs, { role: "assistant", content: reply }]);
     setLoading(false);
   }
@@ -442,6 +469,21 @@ function ChatTab() {
 
 // ── Info Modal ──────────────────────────────────────────────────────────────────
 function InfoModal({ onClose }) {
+  const [keyInput, setKeyInput] = useState(getApiKey());
+  const [saved, setSaved] = useState(false);
+  const hasKey = getApiKey().length > 0;
+
+  function save() {
+    setApiKey(keyInput.trim());
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1800);
+  }
+  function clear() {
+    setApiKey("");
+    setKeyInput("");
+    setSaved(false);
+  }
+
   return (
     <div onClick={onClose} style={{
       position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100,
@@ -450,9 +492,46 @@ function InfoModal({ onClose }) {
       <div onClick={e => e.stopPropagation()} style={{
         background: "#0f172a", border: "1px solid rgba(255,255,255,0.12)",
         borderRadius: 20, padding: 32, maxWidth: 480, width: "100%",
+        maxHeight: "85vh", overflowY: "auto",
         animation: "fadeIn 0.3s ease",
       }}>
         <h2 style={{ color: "white", marginBottom: 20, fontFamily: "'DM Sans', sans-serif" }}>🔭 COSMOS – Info</h2>
+
+        {/* API-Key */}
+        <div style={{ ...cardStyle, padding: 18, marginBottom: 22 }}>
+          <strong style={{ color: "#e2e8f0", fontSize: 15 }}>Gemini API-Schlüssel</strong>
+          <p style={{ color: "#64748b", fontSize: 12, lineHeight: 1.6, margin: "6px 0 12px" }}>
+            Nötig für Infos, Quiz & Chat. Wird nur lokal in deinem Browser
+            gespeichert – nie hochgeladen.{" "}
+            <a href="https://aistudio.google.com/api-keys" target="_blank" rel="noreferrer" style={{ color: "#818cf8" }}>
+              Schlüssel holen ↗
+            </a>
+          </p>
+          <input
+            type="password"
+            value={keyInput}
+            onChange={e => setKeyInput(e.target.value)}
+            placeholder="AIza…"
+            style={{
+              width: "100%", boxSizing: "border-box",
+              background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 10, padding: "11px 14px", color: "white", fontSize: 14,
+              fontFamily: "monospace",
+            }}
+          />
+          <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <button onClick={save} disabled={!keyInput.trim()} style={{ ...btnStyle("#8b5cf6"), opacity: keyInput.trim() ? 1 : 0.5 }}>
+              Speichern
+            </button>
+            {hasKey && (
+              <button onClick={clear} style={btnStyle("#f87171")}>Entfernen</button>
+            )}
+            <span style={{ fontSize: 13, color: saved ? "#4ade80" : hasKey ? "#94a3b8" : "#64748b" }}>
+              {saved ? "✓ Gespeichert" : hasKey ? "● Schlüssel hinterlegt" : "Kein Schlüssel"}
+            </span>
+          </div>
+        </div>
+
         <div style={{ color: "#94a3b8", fontSize: 14, lineHeight: 1.8 }}>
           <strong style={{ color: "#e2e8f0" }}>Features</strong>
           <ul style={{ marginTop: 8, paddingLeft: 20 }}>
@@ -463,11 +542,11 @@ function InfoModal({ onClose }) {
           <strong style={{ color: "#e2e8f0", display: "block", marginTop: 16 }}>Tech-Stack</strong>
           <ul style={{ marginTop: 8, paddingLeft: 20 }}>
             <li>React (PWA-fähig)</li>
-            <li>Anthropic Claude API – Sonnet 4</li>
-            <li>Kein Backend, kein Account notwendig</li>
+            <li>Google Gemini API – {GEMINI_MODEL}</li>
+            <li>Kein Backend – Key bleibt lokal im Browser</li>
           </ul>
           <strong style={{ color: "#e2e8f0", display: "block", marginTop: 16 }}>Version</strong>
-          <p style={{ marginTop: 4 }}>v1.0 – Team Melli & Marc ✦</p>
+          <p style={{ marginTop: 4 }}>v1.2 – Team Melli & Marc ✦</p>
         </div>
         <button onClick={onClose} style={{ ...btnStyle("#8b5cf6"), marginTop: 24, width: "100%" }}>
           Schließen
