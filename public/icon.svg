@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="22%" cy="14%" r="110%">
+      <stop offset="0%" stop-color="#241552"/>
+      <stop offset="38%" stop-color="#0b1024"/>
+      <stop offset="100%" stop-color="#02040d"/>
+    </radialGradient>
+    <linearGradient id="spark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c4b5fd"/>
+      <stop offset="50%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="18" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#bg)"/>
+
+  <!-- scattered stars -->
+  <g fill="#ffffff">
+    <circle cx="92"  cy="110" r="3.4" opacity="0.9"/>
+    <circle cx="420" cy="86"  r="2.6" opacity="0.75"/>
+    <circle cx="446" cy="190" r="2.0" opacity="0.6"/>
+    <circle cx="70"  cy="300" r="2.2" opacity="0.7"/>
+    <circle cx="120" cy="430" r="2.8" opacity="0.8"/>
+    <circle cx="398" cy="420" r="3.0" opacity="0.85"/>
+    <circle cx="300" cy="120" r="1.8" opacity="0.55"/>
+    <circle cx="200" cy="80"  r="2.0" opacity="0.6"/>
+    <circle cx="452" cy="330" r="2.4" opacity="0.7"/>
+    <circle cx="58"  cy="200" r="1.8" opacity="0.5"/>
+  </g>
+
+  <!-- small accent sparkle -->
+  <g transform="translate(372,150)" fill="url(#spark)" opacity="0.85">
+    <path d="M0,-34 Q6,-6 34,0 Q6,6 0,34 Q-6,6 -34,0 Q-6,-6 0,-34 Z"/>
+  </g>
+
+  <!-- main sparkle -->
+  <g transform="translate(256,266)" fill="url(#spark)" filter="url(#glow)">
+    <path d="M0,-168 Q26,-26 168,0 Q26,26 0,168 Q-26,26 -168,0 Q-26,-26 0,-168 Z"/>
+  </g>
+</svg>

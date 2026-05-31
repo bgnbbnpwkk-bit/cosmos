@@ -6,8 +6,8 @@
   "background_color": "#080c1a",
   "theme_color": "#8b5cf6",
   "icons": [
-    { "src": "https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f52d.png", "sizes": "72x72", "type": "image/png" },
-    { "src": "https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f52d.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f52d.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/cosmos/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/cosmos/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/cosmos/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
