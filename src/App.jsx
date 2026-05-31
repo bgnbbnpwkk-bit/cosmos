@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 
 const TOPICS = [
   { id: "planets", label: "Planeten", icon: "🪐", description: "Unser Sonnensystem & seine Körper" },
@@ -32,6 +34,13 @@ correct ist true wenn score >= 60.`;
 
 // Changelog – auch im ⓘ-Menü sichtbar. Neueste Version oben.
 const CHANGELOG = [
+  {
+    version: "1.5.0", date: "2026-05-31",
+    changes: [
+      "Formeln werden als LaTeX/KaTeX schön gesetzt (z. B. Exponenten)",
+      "Token-Limit auf 8192 erhöht – keine abgeschnittenen langen Antworten mehr",
+    ],
+  },
   {
     version: "1.4.0", date: "2026-05-31",
     changes: [
@@ -107,7 +116,7 @@ async function callAI(messages, system, json = false) {
     const body = {
       contents,
       generationConfig: {
-        maxOutputTokens: 2048,
+        maxOutputTokens: 8192,
         // Thinking abschalten: spart Budget/Zeit und liefert vollständige Antworten.
         thinkingConfig: { thinkingBudget: 0 },
         ...(json ? { responseMimeType: "application/json" } : {}),
@@ -184,7 +193,15 @@ const mdComponents = {
 };
 
 function MD({ children }) {
-  return <ReactMarkdown components={mdComponents}>{children || ""}</ReactMarkdown>;
+  return (
+    <ReactMarkdown
+      components={mdComponents}
+      remarkPlugins={[remarkMath]}
+      rehypePlugins={[rehypeKatex]}
+    >
+      {children || ""}
+    </ReactMarkdown>
+  );
 }
 
 // ── Stars background ──────────────────────────────────────────────────────────

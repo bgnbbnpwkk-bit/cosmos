@@ -3,6 +3,16 @@
 Alle nennenswerten Änderungen an COSMOS werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
+## [1.5.0] – 2026-05-31
+
+### Hinzugefügt
+- LaTeX-/Formel-Rendering via `remark-math` + `rehype-katex` (KaTeX) – z. B.
+  Exponenten und mathematische Ausdrücke werden korrekt gesetzt.
+
+### Geändert
+- `maxOutputTokens` von 2048 auf 8192 erhöht – lange Übersichten werden nicht
+  mehr abgeschnitten.
+
 ## [1.4.0] – 2026-05-31
 
 ### Hinzugefügt
