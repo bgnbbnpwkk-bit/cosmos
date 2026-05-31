@@ -1,0 +1,11 @@
+name = "cosmos-proxy"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# Nur Anfragen von deiner GitHub-Pages-Seite zulassen (Schutz vor Fremdnutzung).
+# Bei eigener Domain hier anpassen.
+[vars]
+ALLOWED_ORIGIN = "https://bgnbbnpwkk-bit.github.io"
+
+# WICHTIG: Der API-Key wird NICHT hier eingetragen, sondern als Secret:
+#   wrangler secret put ANTHROPIC_API_KEY

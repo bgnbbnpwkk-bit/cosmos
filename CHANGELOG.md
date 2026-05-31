@@ -3,6 +3,25 @@
 Alle nennenswerten Änderungen an COSMOS werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
+## [1.1.0] – 2026-05-31
+
+### Hinzugefügt
+- Cloudflare-Worker-Proxy (`worker/`), der den Anthropic-API-Key serverseitig
+  hält und Anfragen weiterleitet – inkl. CORS-Handling, Origin-Whitelist und
+  `max_tokens`-Deckelung als Kostenschutz.
+- Ausführliche Einrichtungsanleitung (`worker/README.md`), inkl. Erstellen des
+  Anthropic-API-Keys, Deploy via Wrangler und Verbindung mit der App.
+
+### Geändert
+- Frontend ruft nun den Proxy (`PROXY_URL` / `VITE_PROXY_URL`) statt direkt die
+  Anthropic-API auf.
+- `callClaude` mit Fehlerbehandlung versehen: verständliche ⚠️-Meldungen statt
+  stiller Abbrüche bei Fehlkonfiguration.
+
+### Behoben
+- Die KI-Funktionen (Infos, Quiz, Chat) sind damit grundsätzlich
+  funktionsfähig, sobald der Proxy deployed und `PROXY_URL` gesetzt ist.
+
 ## [1.0.0] – 2026-05-31
 
 ### Hinzugefügt

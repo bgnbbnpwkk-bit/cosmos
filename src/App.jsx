@@ -29,25 +29,37 @@ Antworte NUR als JSON (kein Markdown):
 {"score": 0-100, "feedback": "...", "correct": true/false}
 correct ist true wenn score >= 60.`;
 
+// URL des Cloudflare-Worker-Proxys. Nach dem Worker-Deploy hier eintragen
+// (oder zur Build-Zeit via VITE_PROXY_URL setzen). Siehe worker/README.md.
+const PROXY_URL = import.meta.env.VITE_PROXY_URL || "https://DEINE-WORKER-URL.workers.dev";
+
 async function callClaude(messages, system, json = false) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      system,
-      messages,
-    }),
-  });
-  const data = await res.json();
-  const text = data.content?.find(b => b.type === "text")?.text || "";
-  if (json) {
-    try {
-      return JSON.parse(text.replace(/```json|```/g, "").trim());
-    } catch { return null; }
+  try {
+    const res = await fetch(PROXY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        system,
+        messages,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const msg = data?.error?.message || data?.error || `Fehler ${res.status}`;
+      return json ? null : `⚠️ ${msg}`;
+    }
+    const text = data.content?.find(b => b.type === "text")?.text || "";
+    if (json) {
+      try {
+        return JSON.parse(text.replace(/```json|```/g, "").trim());
+      } catch { return null; }
+    }
+    return text || "⚠️ Leere Antwort erhalten.";
+  } catch {
+    return json ? null : "⚠️ Verbindung zum KI-Proxy fehlgeschlagen. Ist PROXY_URL korrekt gesetzt?";
   }
-  return text;
 }
 
 // ── Stars background ──────────────────────────────────────────────────────────
