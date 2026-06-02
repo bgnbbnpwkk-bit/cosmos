@@ -3,6 +3,25 @@
 Alle nennenswerten Änderungen an COSMOS werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
+## [2.0.0] – 2026-06-02
+
+### Hinzugefügt
+- **Google-Login via Firebase Auth**: COSMOS ist jetzt privat – nur die
+  freigeschalteten Konten von Marc & Melli haben Zugriff. Login-Screen mit
+  „Mit Google anmelden", Logout-Button im ⓘ-Panel.
+- Nicht freigeschaltete Accounts werden nach dem Login sofort wieder abgemeldet
+  (freundlicher Hinweis auf Deutsch).
+- **Echter Service Worker** (vite-plugin-pwa) mit automatischem Update –
+  ersetzt den bisherigen version.json-Mechanismus; kein manuelles
+  Neu-Installieren mehr nötig.
+- Safe-Area-Unterstützung (`viewport-fit=cover`) – optimiert für iPhone 16e &
+  Samsung S24 Ultra.
+- Deploy via **GitHub Actions** (Pages-Source = GitHub Actions).
+
+### Hinweise
+- Firebase wird **ausschließlich für den Login** genutzt; App-Daten bleiben
+  weiterhin lokal im `localStorage`.
+
 ## [1.5.0] – 2026-05-31
 
 ### Hinzugefügt

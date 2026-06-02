@@ -2,6 +2,14 @@ import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import {
+  onAuthStateChanged,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  signOut,
+} from "firebase/auth";
+import { auth, googleProvider, isAllowed } from "./firebase";
 
 const TOPICS = [
   { id: "planets", label: "Planeten", icon: "🪐", description: "Unser Sonnensystem & seine Körper" },
@@ -34,6 +42,16 @@ correct ist true wenn score >= 60.`;
 
 // Changelog – auch im ⓘ-Menü sichtbar. Neueste Version oben.
 const CHANGELOG = [
+  {
+    version: "2.0.0", date: "2026-06-02",
+    changes: [
+      "Google-Login via Firebase Auth – COSMOS ist jetzt privat für Team Melli & Marc",
+      "Nicht freigeschaltete Accounts werden mit freundlichem Hinweis abgemeldet",
+      "Logout-Button im ⓘ-Panel",
+      "Echter Service Worker mit automatischem Update (kein Neu-Installieren nötig)",
+      "Optimiert für iPhone & Samsung (Safe-Area-Ränder)",
+    ],
+  },
   {
     version: "1.5.0", date: "2026-05-31",
     changes: [
@@ -147,30 +165,6 @@ async function callAI(messages, system, json = false) {
   } catch {
     return json ? null : "⚠️ Verbindung zur Gemini-API fehlgeschlagen.";
   }
-}
-
-// ── Auto-Update ──────────────────────────────────────────────────────────────
-// Build-ID wird zur Build-Zeit eingebacken (siehe vite.config.js) und mit der
-// live ausgelieferten version.json verglichen. Bei Unterschied: harter Reload
-// mit Cache-Buster, damit das neue Bundle sicher geladen wird.
-const BUILD_ID = typeof __BUILD_ID__ !== "undefined" ? __BUILD_ID__ : "dev";
-
-async function fetchLatestVersion() {
-  try {
-    const res = await fetch(`${import.meta.env.BASE_URL}version.json?ts=${Date.now()}`, { cache: "no-store" });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data?.version || null;
-  } catch {
-    return null;
-  }
-}
-
-function applyUpdate(version) {
-  const v = version || Date.now().toString();
-  // Query-Param umgeht den HTML-Cache; das neue index.html referenziert die
-  // neuen, gehashten Asset-Dateien.
-  window.location.replace(window.location.pathname + "?v=" + encodeURIComponent(v));
 }
 
 // ── Markdown-Rendering ───────────────────────────────────────────────────────
@@ -583,7 +577,7 @@ function ChatTab() {
 }
 
 // ── Info Modal ──────────────────────────────────────────────────────────────────
-function InfoModal({ onClose }) {
+function InfoModal({ onClose, user, onLogout }) {
   const [keyInput, setKeyInput] = useState(getApiKey());
   const [saved, setSaved] = useState(false);
   const hasKey = getApiKey().length > 0;
@@ -611,6 +605,15 @@ function InfoModal({ onClose }) {
         animation: "fadeIn 0.3s ease",
       }}>
         <h2 style={{ color: "white", marginBottom: 20, fontFamily: "'DM Sans', sans-serif" }}>🔭 COSMOS – Info</h2>
+
+        {/* Konto */}
+        <div style={{ ...cardStyle, padding: 18, marginBottom: 22 }}>
+          <strong style={{ color: "#e2e8f0", fontSize: 15 }}>Angemeldet</strong>
+          <p style={{ color: "#94a3b8", fontSize: 13, lineHeight: 1.6, margin: "6px 0 12px", wordBreak: "break-all" }}>
+            {user?.displayName ? `${user.displayName} · ` : ""}{user?.email || "—"}
+          </p>
+          <button onClick={onLogout} style={btnStyle("#f87171")}>Abmelden</button>
+        </div>
 
         {/* API-Key */}
         <div style={{ ...cardStyle, padding: 18, marginBottom: 22 }}>
@@ -672,12 +675,13 @@ function InfoModal({ onClose }) {
 
           <strong style={{ color: "#e2e8f0", display: "block", marginTop: 16 }}>Tech-Stack</strong>
           <ul style={{ marginTop: 8, paddingLeft: 20 }}>
-            <li>React (PWA-fähig)</li>
+            <li>React (PWA, Service Worker mit Auto-Update)</li>
+            <li>Firebase Auth – Google-Login (nur Login, keine Datenhaltung)</li>
             <li>Google Gemini API – {GEMINI_MODEL}</li>
-            <li>Kein Backend – Key bleibt lokal im Browser</li>
+            <li>Daten & Key bleiben lokal im Browser (localStorage)</li>
           </ul>
           <strong style={{ color: "#e2e8f0", display: "block", marginTop: 16 }}>Version</strong>
-          <p style={{ marginTop: 4 }}>v1.2 – Team Melli & Marc ✦</p>
+          <p style={{ marginTop: 4 }}>v{CHANGELOG[0].version} – Team Melli &amp; Marc ✦</p>
         </div>
         <button onClick={onClose} style={{ ...btnStyle("#8b5cf6"), marginTop: 24, width: "100%" }}>
           Schließen
@@ -705,42 +709,8 @@ const cardStyle = {
   borderRadius: 16, padding: 28,
 };
 
-// ── Main App ───────────────────────────────────────────────────────────────────
-export default function App() {
-  const [tab, setTab] = useState("info");
-  const [showInfo, setShowInfo] = useState(false);
-  const [newVersion, setNewVersion] = useState(null);
-
-  // Auto-Update-Prüfung: beim Start (hart) und bei Rückkehr zur App (Banner).
-  useEffect(() => {
-    let active = true;
-    async function check(initial) {
-      const v = await fetchLatestVersion();
-      if (!active || !v || v === BUILD_ID) return;
-      if (initial) {
-        // Reload-Schleife verhindern: pro Version nur einmal automatisch laden.
-        if (sessionStorage.getItem("cosmos_updated_to") === v) {
-          setNewVersion(v);
-          return;
-        }
-        sessionStorage.setItem("cosmos_updated_to", v);
-        applyUpdate(v);
-      } else {
-        setNewVersion(v);
-      }
-    }
-    check(true);
-    const onVis = () => { if (document.visibilityState === "visible") check(false); };
-    document.addEventListener("visibilitychange", onVis);
-    return () => { active = false; document.removeEventListener("visibilitychange", onVis); };
-  }, []);
-
-  const tabs = [
-    { id: "info", label: "Infos", icon: "📚" },
-    { id: "quiz", label: "Quiz", icon: "🧠" },
-    { id: "chat", label: "Chat", icon: "💬" },
-  ];
-
+// ── Cosmic Shell (gemeinsamer Hintergrund) ──────────────────────────────────────
+function Shell({ children }) {
   return (
     <div style={{
       minHeight: "100vh",
@@ -752,25 +722,105 @@ export default function App() {
     }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
       <StarField />
+      {children}
+    </div>
+  );
+}
 
-      {newVersion && (
-        <button onClick={() => applyUpdate(newVersion)} style={{
-          position: "fixed", left: 16, right: 16, bottom: 16, zIndex: 90,
-          margin: "0 auto", maxWidth: 420,
-          background: "linear-gradient(135deg, #6d28d9, #4f46e5)",
-          border: "none", borderRadius: 14, padding: "14px 18px",
-          color: "white", fontSize: 14, fontWeight: 600, cursor: "pointer",
-          fontFamily: "'DM Sans', sans-serif",
-          boxShadow: "0 8px 30px rgba(79,70,229,0.5)",
-          animation: "fadeIn 0.3s ease",
+const safeAreaPadding = "calc(env(safe-area-inset-top) + 8px) calc(env(safe-area-inset-right) + 20px) calc(env(safe-area-inset-bottom) + 60px) calc(env(safe-area-inset-left) + 20px)";
+
+// ── Splash (während Auth-Status geladen wird) ───────────────────────────────────
+function SplashScreen() {
+  return (
+    <Shell>
+      <div style={{ position: "relative", zIndex: 1, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18 }}>
+        <div style={{ fontSize: 30, fontWeight: 700, background: "linear-gradient(135deg, #c4b5fd, #818cf8, #38bdf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>✦ COSMOS</div>
+        <div style={{ width: 26, height: 26, border: "3px solid rgba(139,92,246,0.3)", borderTopColor: "#8b5cf6", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+      </div>
+    </Shell>
+  );
+}
+
+// ── Login-Screen ────────────────────────────────────────────────────────────────
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22 22-9.8 22-22c0-1.5-.2-2.6-.4-3.5z"/>
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 4.1 29.6 2 24 2 15.5 2 8.1 6.8 6.3 14.7z"/>
+      <path fill="#4CAF50" d="M24 46c5.5 0 10.5-2.1 14.3-5.6l-6.6-5.6c-2 1.5-4.7 2.4-7.7 2.4-5.2 0-9.6-3.3-11.2-8l-6.6 5.1C8 41.1 15.4 46 24 46z"/>
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.4l6.6 5.6C42.5 36 46 30.6 46 24c0-1.5-.2-2.6-.4-3.5z"/>
+    </svg>
+  );
+}
+
+function LoginScreen({ onLogin, busy, error }) {
+  return (
+    <Shell>
+      <div style={{ position: "relative", zIndex: 1, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: safeAreaPadding, boxSizing: "border-box" }}>
+        <div style={{
+          ...cardStyle, padding: 32, maxWidth: 380, width: "100%", textAlign: "center",
+          animation: "fadeIn 0.4s ease",
         }}>
-          ✨ Neue Version verfügbar – jetzt aktualisieren
-        </button>
-      )}
+          <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: "-0.02em", background: "linear-gradient(135deg, #c4b5fd, #818cf8, #38bdf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+            ✦ COSMOS
+          </div>
+          <p style={{ color: "#94a3b8", fontSize: 14, lineHeight: 1.6, margin: "10px 0 4px" }}>
+            Astronomie – Wissen &amp; Quiz
+          </p>
+          <p style={{ color: "#64748b", fontSize: 13, margin: "0 0 28px" }}>
+            Privat für <strong style={{ color: "#c4b5fd" }}>Team Melli &amp; Marc</strong> ✦
+          </p>
 
-      <div style={{ position: "relative", zIndex: 1, maxWidth: 860, margin: "0 auto", padding: "0 20px 60px" }}>
+          <button onClick={onLogin} disabled={busy} style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+            width: "100%", boxSizing: "border-box",
+            background: "white", color: "#1f2937", border: "none",
+            borderRadius: 12, padding: "13px 18px", cursor: busy ? "default" : "pointer",
+            fontSize: 15, fontWeight: 600, fontFamily: "'DM Sans', sans-serif",
+            opacity: busy ? 0.6 : 1, transition: "all 0.2s",
+          }}>
+            {busy
+              ? <span style={{ width: 18, height: 18, border: "2px solid rgba(31,41,55,0.3)", borderTopColor: "#1f2937", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+              : <GoogleIcon />}
+            {busy ? "Anmeldung…" : "Mit Google anmelden"}
+          </button>
+
+          {error && (
+            <div style={{
+              marginTop: 18, padding: 14, borderRadius: 12,
+              background: "rgba(248,113,113,0.12)", border: "1px solid rgba(248,113,113,0.35)",
+              color: "#fca5a5", fontSize: 13, lineHeight: 1.6, animation: "fadeIn 0.3s ease",
+            }}>
+              {error}
+            </div>
+          )}
+
+          <p style={{ color: "#475569", fontSize: 11, lineHeight: 1.6, marginTop: 24 }}>
+            Nur freigeschaltete Google-Konten haben Zugriff. Es werden nur Login-Daten
+            (Name, E-Mail) verwendet – keine Inhalte gespeichert.
+          </p>
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+// ── Angemeldete App ─────────────────────────────────────────────────────────────
+function CosmosApp({ user, onLogout }) {
+  const [tab, setTab] = useState("info");
+  const [showInfo, setShowInfo] = useState(false);
+
+  const tabs = [
+    { id: "info", label: "Infos", icon: "📚" },
+    { id: "quiz", label: "Quiz", icon: "🧠" },
+    { id: "chat", label: "Chat", icon: "💬" },
+  ];
+
+  return (
+    <Shell>
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 860, margin: "0 auto", padding: safeAreaPadding }}>
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "32px 0 40px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 0 40px" }}>
           <div>
             <h1 style={{
               fontSize: 32, fontWeight: 700, letterSpacing: "-0.02em",
@@ -781,7 +831,7 @@ export default function App() {
               ✦ COSMOS
             </h1>
             <p style={{ color: "#475569", fontSize: 13, marginTop: 4, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-              Astronomie – Wissen & Quiz
+              Astronomie · Team Melli &amp; Marc
             </p>
           </div>
           <button onClick={() => setShowInfo(true)} style={{
@@ -814,7 +864,67 @@ export default function App() {
         {tab === "chat" && <ChatTab />}
       </div>
 
-      {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
-    </div>
+      {showInfo && <InfoModal onClose={() => setShowInfo(false)} user={user} onLogout={onLogout} />}
+    </Shell>
   );
+}
+
+// ── Auth-Gate ────────────────────────────────────────────────────────────────────
+export default function App() {
+  const [status, setStatus] = useState("loading"); // loading | out | in
+  const [user, setUser] = useState(null);
+  const [authError, setAuthError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    // Ergebnis eines evtl. Redirect-Logins abholen (Fallback-Flow).
+    getRedirectResult(auth).catch(() => {});
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (!u) { setUser(null); setStatus("out"); return; }
+      if (!isAllowed(u.email)) {
+        setAuthError(`Schade – ${u.email} ist für COSMOS nicht freigeschaltet. Diese App ist privat für Team Melli & Marc. 💫`);
+        try { await signOut(auth); } catch { /* ignore */ }
+        setUser(null);
+        setStatus("out");
+        return;
+      }
+      setAuthError("");
+      setUser(u);
+      setStatus("in");
+    });
+    return unsub;
+  }, []);
+
+  async function login() {
+    setAuthError("");
+    setBusy(true);
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (e) {
+      const code = e?.code || "";
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        // vom Nutzer abgebrochen – keine Fehlermeldung nötig
+      } else if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+        } catch (e2) {
+          setAuthError("Anmeldung nicht möglich: " + (e2?.message || e2?.code || "Unbekannter Fehler"));
+        }
+      } else if (code === "auth/unauthorized-domain") {
+        setAuthError("Diese Adresse ist in Firebase noch nicht freigegeben (autorisierte Domain fehlt).");
+      } else {
+        setAuthError("Anmeldung fehlgeschlagen: " + (e?.message || code || "Unbekannter Fehler"));
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function logout() {
+    signOut(auth).catch(() => {});
+  }
+
+  if (status === "loading") return <SplashScreen />;
+  if (status !== "in") return <LoginScreen onLogin={login} busy={busy} error={authError} />;
+  return <CosmosApp user={user} onLogout={logout} />;
 }

@@ -1,8 +1,12 @@
 {
   "name": "COSMOS – Astronomie",
   "short_name": "COSMOS",
+  "description": "Astronomie – Wissen & Quiz. Privat für Team Melli & Marc.",
   "start_url": "/cosmos/",
+  "scope": "/cosmos/",
   "display": "standalone",
+  "orientation": "portrait",
+  "lang": "de",
   "background_color": "#080c1a",
   "theme_color": "#8b5cf6",
   "icons": [
